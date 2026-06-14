@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -427,3 +428,18 @@ class TeacherDashboardTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 404)
+
+
+class DemoDataTests(TestCase):
+    def test_seed_creates_rich_data_without_active_attempts(self):
+        call_command("seed_demo_data", verbosity=0)
+
+        self.assertEqual(User.objects.count(), 9)
+        self.assertEqual(Subject.objects.count(), 3)
+        self.assertEqual(SubjectEnrollment.objects.count(), 15)
+        self.assertEqual(Exam.objects.count(), 7)
+        self.assertEqual(Question.objects.count(), 35)
+        self.assertEqual(ExamAttempt.objects.count(), 12)
+        self.assertFalse(
+            ExamAttempt.objects.filter(status=ExamAttempt.Status.IN_PROGRESS).exists()
+        )

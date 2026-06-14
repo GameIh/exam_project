@@ -97,6 +97,20 @@ class Command(BaseCommand):
                 "is_staff": False,
                 "is_superuser": False,
             },
+            "student_elena": {
+                "email": "elena.student@example.com",
+                "full_name": "Елена Волкова",
+                "role": User.Role.STUDENT,
+                "is_staff": False,
+                "is_superuser": False,
+            },
+            "student_oleg": {
+                "email": "oleg.student@example.com",
+                "full_name": "Олег Морозов",
+                "role": User.Role.STUDENT,
+                "is_staff": False,
+                "is_superuser": False,
+            },
         }
         users = {}
         for key, values in data.items():
@@ -131,11 +145,19 @@ class Command(BaseCommand):
         }
 
     def _enrollments(self, users, subjects):
-        student = users["student"]
-        for subject in subjects.values():
-            SubjectEnrollment.objects.create(subject=subject, student=student)
-        for key in ("student_anna", "student_maxim"):
-            SubjectEnrollment.objects.create(subject=subjects["db"], student=users[key])
+        student_keys = (
+            "student",
+            "student_anna",
+            "student_maxim",
+            "student_elena",
+            "student_oleg",
+        )
+        for student_key in student_keys:
+            for subject in subjects.values():
+                SubjectEnrollment.objects.create(
+                    subject=subject,
+                    student=users[student_key],
+                )
 
     def _exams(self, subjects):
         now = timezone.now()
@@ -174,6 +196,54 @@ class Command(BaseCommand):
                 show_answers_after=True,
                 available_from=now + timezone.timedelta(days=2),
                 available_to=now + timezone.timedelta(days=25),
+                is_published=True,
+            ),
+            "db_sql_practice": Exam.objects.create(
+                subject=subjects["db"],
+                title="Практикум по SQL",
+                description="Запросы SELECT, JOIN, GROUP BY, ограничения и транзакции.",
+                time_limit_sec=35 * 60,
+                attempts_limit=2,
+                randomize_questions=True,
+                show_answers_after=True,
+                available_from=now - timezone.timedelta(days=7),
+                available_to=now + timezone.timedelta(days=10),
+                is_published=True,
+            ),
+            "web_final": Exam.objects.create(
+                subject=subjects["web"],
+                title="Итоговая работа",
+                description="Маршрутизация, шаблоны, формы, безопасность и HTTP.",
+                time_limit_sec=60 * 60,
+                attempts_limit=2,
+                randomize_questions=True,
+                show_answers_after=True,
+                available_from=now + timezone.timedelta(days=5),
+                available_to=now + timezone.timedelta(days=30),
+                is_published=True,
+            ),
+            "web_forms": Exam.objects.create(
+                subject=subjects["web"],
+                title="Формы и безопасность",
+                description="Короткая проверочная работа по формам, сессиям и защите запросов.",
+                time_limit_sec=25 * 60,
+                attempts_limit=2,
+                randomize_questions=False,
+                show_answers_after=True,
+                available_from=now - timezone.timedelta(days=14),
+                available_to=now - timezone.timedelta(days=2),
+                is_published=True,
+            ),
+            "algo_basics": Exam.objects.create(
+                subject=subjects["algo"],
+                title="Основы структур данных",
+                description="Стек, очередь, графы, рекурсия, куча и поиск.",
+                time_limit_sec=40 * 60,
+                attempts_limit=2,
+                randomize_questions=True,
+                show_answers_after=True,
+                available_from=now - timezone.timedelta(days=10),
+                available_to=now + timezone.timedelta(days=12),
                 is_published=True,
             ),
         }
@@ -316,6 +386,34 @@ class Command(BaseCommand):
                 2,
                 "UNIQUE гарантирует уникальность значения в столбце или наборе столбцов.",
             ),
+            "db_group_by": self._single_choice_question(
+                subjects["db"],
+                "Для чего используется GROUP BY в SQL?",
+                [
+                    "Для группировки строк перед вычислением агрегатов",
+                    "Для удаления таблицы",
+                    "Для изменения типа столбца",
+                    "Для создания пользователя базы данных",
+                ],
+                0,
+                "GROUP BY объединяет строки с одинаковыми значениями для агрегатных вычислений.",
+            ),
+            "db_isolation": self._single_choice_question(
+                subjects["db"],
+                "Какое свойство транзакций отвечает за независимость параллельных операций?",
+                ["Атомарность", "Согласованность", "Изолированность", "Долговечность"],
+                2,
+                "Изолированность ограничивает взаимное влияние одновременно выполняемых транзакций.",
+            ),
+            "db_backup": self._text_question(
+                subjects["db"],
+                "Зачем создают резервную копию базы данных?",
+                [
+                    "для восстановления данных после сбоя",
+                    "восстановление данных после сбоя",
+                ],
+                "Резервная копия позволяет восстановить данные после ошибки или повреждения системы.",
+            ),
             "web_templates": self._single_choice_question(
                 subjects["web"],
                 "Что делает Django-шаблон?",
@@ -394,6 +492,46 @@ class Command(BaseCommand):
                 0,
                 "ORM преобразует операции с моделями в SQL-запросы.",
             ),
+            "web_status": self._single_choice_question(
+                subjects["web"],
+                "Какой HTTP-статус означает, что ресурс не найден?",
+                ["200", "301", "404", "500"],
+                2,
+                "Код 404 сообщает, что сервер не нашёл запрошенный ресурс.",
+            ),
+            "web_session": self._single_choice_question(
+                subjects["web"],
+                "Для чего веб-приложению нужна пользовательская сессия?",
+                [
+                    "Для хранения состояния пользователя между запросами",
+                    "Для компиляции CSS",
+                    "Для создания миграций",
+                    "Для изменения DNS-записей",
+                ],
+                0,
+                "Сессия связывает последовательные запросы с состоянием конкретного пользователя.",
+            ),
+            "web_middleware": self._text_question(
+                subjects["web"],
+                "Что делает middleware в Django?",
+                [
+                    "обрабатывает запросы и ответы между сервером и view",
+                    "обрабатывает запрос и ответ до или после view",
+                ],
+                "Middleware выполняет общую обработку запросов и ответов вокруг вызова view.",
+            ),
+            "web_accessibility": self._single_choice_question(
+                subjects["web"],
+                "Зачем элементу формы нужен связанный label?",
+                [
+                    "Для доступного названия поля и удобного фокуса",
+                    "Для подключения базы данных",
+                    "Для запуска контейнера",
+                    "Для очистки сессии",
+                ],
+                0,
+                "Связанный label делает назначение поля понятным пользователям и вспомогательным технологиям.",
+            ),
             "algo_complexity": self._single_choice_question(
                 subjects["algo"],
                 "Какая сложность у бинарного поиска в отсортированном массиве?",
@@ -438,6 +576,43 @@ class Command(BaseCommand):
                 ],
                 "Хеш-таблица позволяет быстро находить значение по ключу.",
             ),
+            "algo_bfs": self._single_choice_question(
+                subjects["algo"],
+                "Какая структура данных используется в поиске в ширину?",
+                ["Стек", "Очередь", "Хеш-функция", "Двоичная куча"],
+                1,
+                "BFS помещает найденные вершины в очередь и обходит их по уровням.",
+            ),
+            "algo_recursion": self._text_question(
+                subjects["algo"],
+                "Что обязательно должна иметь корректная рекурсивная функция?",
+                ["базовый случай", "условие завершения", "базовое условие"],
+                "Базовый случай останавливает дальнейшие рекурсивные вызовы.",
+            ),
+            "algo_heap": self._single_choice_question(
+                subjects["algo"],
+                "Какая операция обычно выполняется быстро в двоичной куче?",
+                [
+                    "Получение минимального или максимального элемента",
+                    "Поиск произвольной строки за O(1)",
+                    "Сортировка без сравнений",
+                    "Удаление всех дубликатов",
+                ],
+                0,
+                "Корень кучи хранит минимальный или максимальный элемент в зависимости от её типа.",
+            ),
+            "algo_graph": self._single_choice_question(
+                subjects["algo"],
+                "Из чего состоит граф?",
+                [
+                    "Из вершин и рёбер",
+                    "Только из отсортированных массивов",
+                    "Только из таблиц базы данных",
+                    "Из HTML-тегов и атрибутов",
+                ],
+                0,
+                "Граф описывается множеством вершин и связями между ними.",
+            ),
         }
 
     def _exam_questions(self, exams, questions):
@@ -466,6 +641,31 @@ class Command(BaseCommand):
             (exams["algo_module"], questions["algo_tree"], Decimal("1.00"), 4),
             (exams["algo_module"], questions["algo_sort"], Decimal("2.00"), 5),
             (exams["algo_module"], questions["algo_hash"], Decimal("2.00"), 6),
+            (exams["db_sql_practice"], questions["db_join"], Decimal("1.00"), 1),
+            (exams["db_sql_practice"], questions["db_group_by"], Decimal("2.00"), 2),
+            (exams["db_sql_practice"], questions["db_unique"], Decimal("1.00"), 3),
+            (exams["db_sql_practice"], questions["db_transaction"], Decimal("2.00"), 4),
+            (exams["db_sql_practice"], questions["db_isolation"], Decimal("2.00"), 5),
+            (exams["db_sql_practice"], questions["db_backup"], Decimal("2.00"), 6),
+            (exams["web_final"], questions["web_templates"], Decimal("1.00"), 1),
+            (exams["web_final"], questions["web_url"], Decimal("1.00"), 2),
+            (exams["web_final"], questions["web_orm"], Decimal("2.00"), 3),
+            (exams["web_final"], questions["web_status"], Decimal("1.00"), 4),
+            (exams["web_final"], questions["web_session"], Decimal("1.00"), 5),
+            (exams["web_final"], questions["web_middleware"], Decimal("2.00"), 6),
+            (exams["web_final"], questions["web_accessibility"], Decimal("1.00"), 7),
+            (exams["web_final"], questions["web_csrf"], Decimal("1.00"), 8),
+            (exams["web_forms"], questions["web_post"], Decimal("1.00"), 1),
+            (exams["web_forms"], questions["web_csrf"], Decimal("2.00"), 2),
+            (exams["web_forms"], questions["web_session"], Decimal("1.00"), 3),
+            (exams["web_forms"], questions["web_auth"], Decimal("1.00"), 4),
+            (exams["web_forms"], questions["web_accessibility"], Decimal("1.00"), 5),
+            (exams["algo_basics"], questions["algo_stack"], Decimal("1.00"), 1),
+            (exams["algo_basics"], questions["algo_queue"], Decimal("1.00"), 2),
+            (exams["algo_basics"], questions["algo_bfs"], Decimal("2.00"), 3),
+            (exams["algo_basics"], questions["algo_recursion"], Decimal("2.00"), 4),
+            (exams["algo_basics"], questions["algo_heap"], Decimal("1.00"), 5),
+            (exams["algo_basics"], questions["algo_graph"], Decimal("1.00"), 6),
         ]
         for exam, question, points, order in data:
             ExamQuestion.objects.create(
@@ -555,10 +755,11 @@ class Command(BaseCommand):
         web_attempt = ExamAttempt.objects.create(
             exam=exams["web_mid"],
             student=student,
-            status=ExamAttempt.Status.IN_PROGRESS,
-            start_at=timezone.now() - timezone.timedelta(minutes=8),
+            status=ExamAttempt.Status.SUBMITTED,
+            start_at=timezone.now() - timezone.timedelta(days=4, minutes=42),
+            end_at=timezone.now() - timezone.timedelta(days=4),
             time_limit_sec=exams["web_mid"].time_limit_sec,
-            score_total=Decimal("0.00"),
+            score_total=Decimal("5.00"),
             score_max=exam_points(exams["web_mid"]),
         )
         for key, option_index in [
@@ -571,5 +772,31 @@ class Command(BaseCommand):
                 attempt=web_attempt,
                 question=question,
                 selected_option=question.options.all()[option_index],
-                score_awarded=Decimal("0.00"),
+                score_awarded=ExamQuestion.objects.get(
+                    exam=exams["web_mid"],
+                    question=question,
+                ).points,
+            )
+
+        completed_attempts = (
+            ("student_anna", "db_sql_practice", ExamAttempt.Status.SUBMITTED, "8.00", 5),
+            ("student_maxim", "db_sql_practice", ExamAttempt.Status.SUBMITTED, "6.00", 6),
+            ("student_elena", "web_mid", ExamAttempt.Status.SUBMITTED, "11.00", 3),
+            ("student_oleg", "web_mid", ExamAttempt.Status.SUBMITTED, "8.00", 7),
+            ("student_anna", "web_forms", ExamAttempt.Status.SUBMITTED, "5.00", 4),
+            ("student_elena", "web_forms", ExamAttempt.Status.SUBMITTED, "6.00", 5),
+            ("student_maxim", "algo_basics", ExamAttempt.Status.SUBMITTED, "6.00", 2),
+            ("student_oleg", "algo_basics", ExamAttempt.Status.EXPIRED, "3.00", 3),
+        )
+        for student_key, exam_key, status, score, days_ago in completed_attempts:
+            exam = exams[exam_key]
+            ExamAttempt.objects.create(
+                exam=exam,
+                student=users[student_key],
+                status=status,
+                start_at=timezone.now() - timezone.timedelta(days=days_ago, minutes=35),
+                end_at=timezone.now() - timezone.timedelta(days=days_ago),
+                time_limit_sec=exam.time_limit_sec,
+                score_total=Decimal(score),
+                score_max=exam_points(exam),
             )
