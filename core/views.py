@@ -800,16 +800,66 @@ def teacher_exam_question_remove(request, exam_id, exam_question_id):
 @login_required
 def teacher_question_list(request):
     _teacher_required(request.user)
-    questions = (
-        Question.objects.filter(subject__in=_teacher_subject_queryset(request.user))
+    subjects = list(_teacher_subject_queryset(request.user).order_by("title"))
+    search_query = request.GET.get("q", "").strip()
+    selected_subject = request.GET.get("subject", "").strip()
+    selected_type = request.GET.get("type", "").strip()
+    selected_status = request.GET.get("status", "").strip()
+
+    questions = Question.objects.filter(subject__in=subjects)
+    if search_query:
+        questions = questions.filter(
+            Q(question_text__icontains=search_query)
+            | Q(explanation__icontains=search_query)
+        )
+    allowed_subject_ids = {str(subject.subject_id) for subject in subjects}
+    if selected_subject in allowed_subject_ids:
+        questions = questions.filter(subject_id=selected_subject)
+    else:
+        selected_subject = ""
+    if selected_type in Question.Type.values:
+        questions = questions.filter(q_type=selected_type)
+    else:
+        selected_type = ""
+    if selected_status == "active":
+        questions = questions.filter(is_active=True)
+    elif selected_status == "inactive":
+        questions = questions.filter(is_active=False)
+    else:
+        selected_status = ""
+
+    questions = list(
+        questions
         .select_related("subject")
         .annotate(exam_count=Count("exam_questions", distinct=True))
         .order_by("subject__title", "question_text")
     )
+    grouped_questions = {}
+    for question in questions:
+        group = grouped_questions.setdefault(
+            question.subject_id,
+            {"subject": question.subject, "questions": []},
+        )
+        group["questions"].append(question)
+
+    filters_active = bool(
+        search_query or selected_subject or selected_type or selected_status
+    )
     return render(
         request,
         "core/teacher_question_list.html",
-        {**_profile_context(request), "questions": questions},
+        {
+            **_profile_context(request),
+            "question_groups": list(grouped_questions.values()),
+            "subjects": subjects,
+            "question_types": Question.Type.choices,
+            "search_query": search_query,
+            "selected_subject": selected_subject,
+            "selected_type": selected_type,
+            "selected_status": selected_status,
+            "filters_active": filters_active,
+            "filtered_count": len(questions),
+        },
     )
 
 

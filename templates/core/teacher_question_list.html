@@ -8,28 +8,74 @@
   {% if messages %}<div class="panel-list page-messages">{% for message in messages %}<div class="panel-item">{{ message }}</div>{% endfor %}</div>{% endif %}
   <section class="card pad">
     <div class="section-head">
-      <h3>Вопросы</h3>
+      <div>
+        <h3>Вопросы</h3>
+        <p>Найдено: {{ filtered_count }}</p>
+      </div>
       <a class="button" href="{% url 'teacher_question_create' %}">Добавить вопрос</a>
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Предмет</th><th>Вопрос</th><th>Тип</th><th>Сложность</th><th>Экзамены</th><th>Статус</th><th></th></tr></thead>
-        <tbody>
-          {% for question in questions %}
-            <tr>
-              <td>{{ question.subject.title }}</td>
-              <td>{{ question.question_text }}</td>
-              <td>{{ question.get_q_type_display }}</td>
-              <td>{{ question.difficulty }}</td>
-              <td>{{ question.exam_count }}</td>
-              <td>{% if question.is_active %}<span class="badge success">Активен</span>{% else %}<span class="badge warning">Отключён</span>{% endif %}</td>
-              <td><a class="button secondary" href="{% url 'teacher_question_edit' question.question_id %}">Изменить</a></td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="7">В банке пока нет вопросов.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+
+    <form class="question-filters" method="get">
+      <div class="filter-field filter-search">
+        <label for="question-search">Поиск</label>
+        <input id="question-search" type="search" name="q" value="{{ search_query }}" placeholder="Текст вопроса или пояснения">
+      </div>
+      <div class="filter-field">
+        <label for="subject-filter">Предмет</label>
+        <select id="subject-filter" name="subject">
+          <option value="">Все предметы</option>
+          {% for subject in subjects %}<option value="{{ subject.subject_id }}" {% if selected_subject == subject.subject_id|stringformat:"s" %}selected{% endif %}>{{ subject.title }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="filter-field">
+        <label for="type-filter">Тип</label>
+        <select id="type-filter" name="type">
+          <option value="">Все типы</option>
+          {% for value, label in question_types %}<option value="{{ value }}" {% if selected_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="filter-field">
+        <label for="status-filter">Статус</label>
+        <select id="status-filter" name="status">
+          <option value="">Все статусы</option>
+          <option value="active" {% if selected_status == "active" %}selected{% endif %}>Активные</option>
+          <option value="inactive" {% if selected_status == "inactive" %}selected{% endif %}>Отключённые</option>
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button class="button" type="submit">Найти</button>
+        {% if filters_active %}<a class="button ghost" href="{% url 'teacher_question_list' %}">Сбросить</a>{% endif %}
+      </div>
+    </form>
+
+    <div class="question-groups">
+      {% for group in question_groups %}
+        <details class="question-group" {% if filters_active %}open{% endif %}>
+          <summary>
+            <span>{{ group.subject.title }}</span>
+            <span class="question-count">Вопросов: {{ group.questions|length }}</span>
+          </summary>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Вопрос</th><th>Тип</th><th>Сложность</th><th>Экзамены</th><th>Статус</th><th></th></tr></thead>
+              <tbody>
+                {% for question in group.questions %}
+                  <tr>
+                    <td>{{ question.question_text }}</td>
+                    <td>{{ question.get_q_type_display }}</td>
+                    <td>{{ question.difficulty }}</td>
+                    <td>{{ question.exam_count }}</td>
+                    <td>{% if question.is_active %}<span class="badge success">Активен</span>{% else %}<span class="badge warning">Отключён</span>{% endif %}</td>
+                    <td><a class="button secondary" href="{% url 'teacher_question_edit' question.question_id %}">Изменить</a></td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      {% empty %}
+        <div class="empty-state">По заданным фильтрам вопросы не найдены.</div>
+      {% endfor %}
     </div>
   </section>
 {% endblock %}

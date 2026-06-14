@@ -281,14 +281,14 @@ class TeacherDashboardTests(TestCase):
             attempts_limit=1,
             is_published=True,
         )
-        question = Question.objects.create(
+        self.question = Question.objects.create(
             subject=self.subject,
             q_type=Question.Type.SINGLE_CHOICE,
-            question_text="Вопрос",
+            question_text="Вопрос по базам данных",
         )
         ExamQuestion.objects.create(
             exam=self.exam,
-            question=question,
+            question=self.question,
             points=Decimal("1.00"),
             question_order=1,
         )
@@ -392,6 +392,35 @@ class TeacherDashboardTests(TestCase):
             "Второй",
         )
 
+    def test_question_bank_groups_and_filters_questions(self):
+        second_subject = Subject.objects.create(
+            title="Информационные системы",
+            teacher=self.teacher,
+        )
+        Question.objects.create(
+            subject=second_subject,
+            q_type=Question.Type.TEXT,
+            question_text="Архитектура информационной системы",
+            is_active=False,
+        )
+        self.client.login(username="teacher@test.local", password="pass12345")
+
+        grouped = self.client.get(reverse("teacher_question_list"))
+        filtered = self.client.get(
+            reverse("teacher_question_list"),
+            {"q": "Архитектура", "type": Question.Type.TEXT, "status": "inactive"},
+        )
+
+        self.assertEqual(grouped.status_code, 200)
+        self.assertEqual(len(grouped.context["question_groups"]), 2)
+        self.assertContains(grouped, "Базы данных")
+        self.assertContains(grouped, "Информационные системы")
+        self.assertEqual(filtered.status_code, 200)
+        self.assertEqual(filtered.context["filtered_count"], 1)
+        self.assertTrue(filtered.context["filters_active"])
+        self.assertContains(filtered, "Архитектура информационной системы")
+        self.assertNotContains(filtered, "Вопрос по базам данных")
+
     def test_teacher_selects_student_and_sees_results(self):
         self.client.login(username="teacher@test.local", password="pass12345")
 
@@ -435,10 +464,10 @@ class DemoDataTests(TestCase):
         call_command("seed_demo_data", verbosity=0)
 
         self.assertEqual(User.objects.count(), 9)
-        self.assertEqual(Subject.objects.count(), 3)
-        self.assertEqual(SubjectEnrollment.objects.count(), 15)
+        self.assertEqual(Subject.objects.count(), 6)
+        self.assertEqual(SubjectEnrollment.objects.count(), 30)
         self.assertEqual(Exam.objects.count(), 7)
-        self.assertEqual(Question.objects.count(), 35)
+        self.assertEqual(Question.objects.count(), 44)
         self.assertEqual(ExamAttempt.objects.count(), 12)
         self.assertFalse(
             ExamAttempt.objects.filter(status=ExamAttempt.Status.IN_PROGRESS).exists()
