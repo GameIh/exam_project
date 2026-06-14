@@ -1,0 +1,207 @@
+-- ============================================================
+-- Online Exams DB (structure only, logic in backend)
+-- PostgreSQL
+-- ============================================================
+
+CREATE SCHEMA IF NOT EXISTS exam;
+SET search_path TO exam;
+
+-- Значения ролей, типов вопросов и статусов ограничиваются CHECK-условиями.
+-- Так SQL-схема совпадает с Django TextChoices и не требует отдельных PostgreSQL ENUM.
+
+-- ----------------------------
+-- USERS
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS users (
+  user_id        BIGSERIAL PRIMARY KEY,
+  password       VARCHAR(128) NOT NULL,
+  last_login     TIMESTAMPTZ,
+  is_superuser   BOOLEAN NOT NULL DEFAULT FALSE,
+  username       VARCHAR(150) NOT NULL UNIQUE,
+  first_name     VARCHAR(150) NOT NULL DEFAULT '',
+  last_name      VARCHAR(150) NOT NULL DEFAULT '',
+  is_staff       BOOLEAN NOT NULL DEFAULT FALSE,
+  date_joined    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  role           VARCHAR(20) NOT NULL DEFAULT 'student'
+                 CHECK (role IN ('admin', 'teacher', 'student')),
+  full_name      TEXT NOT NULL,
+  email          VARCHAR(254) NOT NULL UNIQUE,
+  is_active      BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ----------------------------
+-- SUBJECTS + привязка к преподавателю
+-- (1 teacher -> many subjects)
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS subjects (
+  subject_id   BIGSERIAL PRIMARY KEY,
+  title        TEXT NOT NULL,
+  description  TEXT,
+  teacher_id   BIGINT NOT NULL REFERENCES users(user_id) ON DELETE RESTRICT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_subjects_teacher ON subjects(teacher_id);
+
+-- ----------------------------
+-- Запись студентов на предмет (кто вообще может сдавать)
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS subject_enrollments (
+  enrollment_id BIGSERIAL PRIMARY KEY,
+  subject_id   BIGINT NOT NULL REFERENCES subjects(subject_id) ON DELETE CASCADE,
+  student_id   BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  enrolled_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT uq_subject_enrollments_subject_student UNIQUE (subject_id, student_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_enrollments_student ON subject_enrollments(student_id);
+
+-- ----------------------------
+-- EXAMS (таймер, окна доступности, попытки)
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS exams (
+  exam_id             BIGSERIAL PRIMARY KEY,
+  subject_id          BIGINT NOT NULL REFERENCES subjects(subject_id) ON DELETE CASCADE,
+  title               TEXT NOT NULL,
+  description         TEXT,
+
+  time_limit_sec      INTEGER NOT NULL,     -- контроль времени
+  attempts_limit      INTEGER NOT NULL DEFAULT 1,
+  randomize_questions BOOLEAN NOT NULL DEFAULT FALSE,
+  show_answers_after  BOOLEAN NOT NULL DEFAULT TRUE,
+
+  available_from      TIMESTAMPTZ,
+  available_to        TIMESTAMPTZ,
+
+  is_published        BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_exams_subject ON exams(subject_id);
+CREATE INDEX IF NOT EXISTS idx_exams_published ON exams(is_published);
+
+-- ----------------------------
+-- QUESTION BANK (вопросы по предмету, переиспользуемые)
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS question_bank (
+  question_id     BIGSERIAL PRIMARY KEY,
+  subject_id      BIGINT NOT NULL REFERENCES subjects(subject_id) ON DELETE CASCADE,
+  q_type          VARCHAR(20) NOT NULL CHECK (q_type IN ('single_choice', 'text')),
+  question_text   TEXT NOT NULL,
+  explanation     TEXT,                 -- можно показывать после экзамена
+  difficulty      SMALLINT NOT NULL DEFAULT 1,
+  is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_question_bank_subject ON question_bank(subject_id);
+
+-- ----------------------------
+-- Привязка вопросов к экзамену (баллы + порядок)
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS exam_questions (
+  exam_question_id BIGSERIAL PRIMARY KEY,
+  exam_id         BIGINT NOT NULL REFERENCES exams(exam_id) ON DELETE CASCADE,
+  question_id     BIGINT NOT NULL REFERENCES question_bank(question_id) ON DELETE RESTRICT,
+  points          NUMERIC(6,2) NOT NULL DEFAULT 1.00,
+  question_order  INTEGER NOT NULL DEFAULT 1,
+  CONSTRAINT uq_exam_questions_exam_question UNIQUE (exam_id, question_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_exam_questions_order ON exam_questions(exam_id, question_order);
+
+-- ----------------------------
+-- Варианты ответа (только для single_choice)
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS question_options (
+  option_id     BIGSERIAL PRIMARY KEY,
+  question_id   BIGINT NOT NULL REFERENCES question_bank(question_id) ON DELETE CASCADE,
+  option_text   TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_options_question ON question_options(question_id);
+
+-- ----------------------------
+-- Ключи правильных ответов
+-- (backend решает как сравнивать и оценивать)
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS correct_choice_keys (
+  correct_choice_key_id BIGSERIAL PRIMARY KEY,
+  question_id  BIGINT NOT NULL REFERENCES question_bank(question_id) ON DELETE CASCADE,
+  option_id    BIGINT NOT NULL REFERENCES question_options(option_id) ON DELETE CASCADE,
+  CONSTRAINT uq_correct_choice_keys_question_option UNIQUE (question_id, option_id)
+);
+
+CREATE TABLE IF NOT EXISTS correct_text_keys (
+  key_id          BIGSERIAL PRIMARY KEY,
+  question_id     BIGINT NOT NULL REFERENCES question_bank(question_id) ON DELETE CASCADE,
+  accepted_answer TEXT NOT NULL
+);
+
+-- ----------------------------
+-- Попытки сдачи (история экзаменов студента)
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS exam_attempts (
+  attempt_id      BIGSERIAL PRIMARY KEY,
+  exam_id         BIGINT NOT NULL REFERENCES exams(exam_id) ON DELETE CASCADE,
+  student_id      BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+
+  status          VARCHAR(20) NOT NULL DEFAULT 'in_progress'
+                  CHECK (status IN ('in_progress', 'submitted', 'expired', 'cancelled')),
+  start_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  end_at          TIMESTAMPTZ,
+
+  time_limit_sec  INTEGER NOT NULL,          -- снимок лимита времени на момент старта
+  score_total     NUMERIC(8,2) NOT NULL DEFAULT 0,
+  score_max       NUMERIC(8,2) NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_attempts_student ON exam_attempts(student_id, start_at DESC);
+CREATE INDEX IF NOT EXISTS idx_attempts_exam_student ON exam_attempts(exam_id, student_id);
+
+-- ----------------------------
+-- Ответы внутри попытки
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS attempt_answers (
+  attempt_answer_id    BIGSERIAL PRIMARY KEY,
+  attempt_id          BIGINT NOT NULL REFERENCES exam_attempts(attempt_id) ON DELETE CASCADE,
+  question_id         BIGINT NOT NULL REFERENCES question_bank(question_id) ON DELETE RESTRICT,
+
+  selected_option_id  BIGINT REFERENCES question_options(option_id) ON DELETE SET NULL,
+  answer_text         TEXT,
+
+  score_awarded       NUMERIC(6,2) NOT NULL DEFAULT 0,
+  answered_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  CONSTRAINT uq_attempt_answers_attempt_question UNIQUE (attempt_id, question_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_attempt_answers_question ON attempt_answers(question_id);
+
+-- ----------------------------
+-- (добавил) Публикация результатов / доступ преподавателю
+-- Препод видит попытки по своим предметам через JOIN:
+-- subjects.teacher_id -> exams.subject_id -> exam_attempts
+-- ----------------------------
+
+-- Удобное VIEW: результаты попыток с экзаменом/предметом
+CREATE OR REPLACE VIEW v_attempt_results AS
+SELECT
+  a.attempt_id,
+  a.student_id,
+  u.full_name AS student_name,
+  a.exam_id,
+  e.title AS exam_title,
+  e.subject_id,
+  s.title AS subject_title,
+  s.teacher_id,
+  a.status,
+  a.start_at,
+  a.end_at,
+  a.score_total,
+  a.score_max
+FROM exam_attempts a
+JOIN users u   ON u.user_id = a.student_id
+JOIN exams e   ON e.exam_id = a.exam_id
+JOIN subjects s ON s.subject_id = e.subject_id;

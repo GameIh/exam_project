@@ -1,0 +1,62 @@
+{% extends "core/base.html" %}
+
+{% block title %}Выбор экзамена{% endblock %}
+{% block page_title %}Выбор экзамена{% endblock %}
+{% block page_subtitle %}Доступные экзамены по записанным предметам{% endblock %}
+
+{% block content %}
+  {% if messages %}
+    <div class="panel-list" style="margin-bottom:14px">
+      {% for message in messages %}
+        <div class="panel-item">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <section class="exam-list">
+    {% for row in rows %}
+      <article class="exam-card">
+        <div class="exam-head">
+          <div>
+            <h3>{{ row.exam.subject.title }} — {{ row.exam.title }}</h3>
+            <p>{{ row.exam.description|default:"Описание экзамена пока не заполнено." }}</p>
+            <div class="exam-meta">
+              <span class="badge info">Предмет: {{ row.exam.subject.title }}</span>
+              <span class="badge">Преподаватель: {{ row.teacher.full_name }}</span>
+              <span class="badge warning">{{ row.time_limit_min }} минут</span>
+              <span class="badge">{{ row.exam.question_count }} вопросов</span>
+              <span class="badge">Попыток: {{ row.attempts_used }} из {{ row.exam.attempts_limit }}</span>
+              {% if row.availability == "not_started" and row.exam.available_from %}
+                <span class="badge danger">Старт: {{ row.exam.available_from|date:"d.m.Y H:i" }}</span>
+              {% elif row.availability == "ended" %}
+                <span class="badge danger">Срок завершён</span>
+              {% elif row.exam.available_to %}
+                <span class="badge success">Доступен до {{ row.exam.available_to|date:"d.m.Y H:i" }}</span>
+              {% else %}
+                <span class="badge success">Доступен без ограничения срока</span>
+              {% endif %}
+            </div>
+          </div>
+
+          {% if row.action_url == "start_exam" %}
+            <form method="post" action="{% url 'start_exam' row.exam.exam_id %}">
+              {% csrf_token %}
+              <button class="button" type="submit">{{ row.action_label }}</button>
+            </form>
+          {% elif row.action_url == "exam_taking" %}
+            <a class="button" href="{% url 'exam_taking' row.action_attempt.attempt_id %}">{{ row.action_label }}</a>
+          {% elif row.action_url == "attempt_results" and row.action_attempt %}
+            <a class="button secondary" href="{% url 'attempt_results' row.action_attempt.attempt_id %}">{{ row.action_label }}</a>
+          {% else %}
+            <span class="button disabled">{{ row.action_label }}</span>
+          {% endif %}
+        </div>
+      </article>
+    {% empty %}
+      <article class="exam-card">
+        <h3>Экзамены не найдены</h3>
+        <p>Вы пока не записаны на предметы с опубликованными экзаменами.</p>
+      </article>
+    {% endfor %}
+  </section>
+{% endblock %}

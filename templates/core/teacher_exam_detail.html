@@ -1,0 +1,88 @@
+{% extends "core/base.html" %}
+
+{% block title %}Результаты экзамена{% endblock %}
+{% block page_title %}{{ exam.subject.title }} — {{ exam.title }}{% endblock %}
+{% block page_subtitle %}Результаты студентов и статистика по вопросам{% endblock %}
+
+{% block content %}
+  {% if messages %}<div class="panel-list page-messages">{% for message in messages %}<div class="panel-item">{{ message }}</div>{% endfor %}</div>{% endif %}
+  <section class="kpis">
+    <div class="kpi"><div class="label">Вопросов</div><div class="value">{{ exam.question_count }}</div></div>
+    <div class="kpi"><div class="label">Попыток всего</div><div class="value">{{ attempt_count }}</div></div>
+    <div class="kpi"><div class="label">Завершено</div><div class="value">{{ completed_count }}</div></div>
+    <div class="kpi"><div class="label">Средний балл</div><div class="value">{{ average_percent }}%</div></div>
+  </section>
+
+  <section class="grid grid-2">
+    <div class="card pad">
+      <h3>Попытки студентов</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Студент</th>
+              <th>Статус</th>
+              <th>Баллы</th>
+              <th>%</th>
+              <th>Начало</th>
+              <th>Время</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in attempt_rows %}
+              <tr>
+                <td><a href="{% url 'teacher_student_detail' row.attempt.student.user_id %}"><strong>{{ row.attempt.student.full_name }}</strong></a></td>
+                <td>
+                  <span class="badge {% if row.attempt.status == 'submitted' %}success{% elif row.attempt.status == 'expired' %}warning{% else %}info{% endif %}">
+                    {{ row.attempt.get_status_display }}
+                  </span>
+                </td>
+                <td>{{ row.attempt.score_total }} / {{ row.attempt.score_max }}</td>
+                <td>{{ row.score_percent }}%</td>
+                <td>{{ row.attempt.start_at|date:"d.m.Y H:i" }}</td>
+                <td>
+                  {% if row.duration_min %}
+                    {{ row.duration_min }} мин
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="6">По этому экзамену пока нет попыток.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="actions">
+        <a class="button secondary" href="{% url 'teacher_dashboard' %}">Назад</a>
+        <a class="button ghost" href="{% url 'teacher_exam_edit' exam.exam_id %}">Настройки экзамена</a>
+        <a class="button ghost" href="{% url 'teacher_exam_questions' exam.exam_id %}">Состав вопросов</a>
+      </div>
+    </div>
+
+    <div class="card pad">
+      <h3>Статистика по вопросам</h3>
+      <div class="panel-list">
+        {% for row in question_rows %}
+          <div class="panel-item">
+            <h3>Вопрос {{ row.exam_question.question_order }}</h3>
+            <p>{{ row.exam_question.question.question_text }}</p>
+            <div class="exam-meta">
+              <span class="badge info">{{ row.exam_question.points }} балл.</span>
+              <span class="badge">Ответов: {{ row.answer_count }}</span>
+              <span class="badge {% if row.average_percent >= 70 %}success{% elif row.average_percent >= 40 %}warning{% else %}danger{% endif %}">Средний результат: {{ row.average_percent }}%</span>
+            </div>
+          </div>
+        {% empty %}
+          <div class="panel-item">
+            <h3>Вопросы не добавлены</h3>
+            <p>Добавьте вопросы в банке преподавателя и включите их в экзамен.</p>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+{% endblock %}

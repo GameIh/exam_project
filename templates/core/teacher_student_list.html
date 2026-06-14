@@ -1,0 +1,28 @@
+{% extends "core/base.html" %}
+
+{% block title %}Студенты{% endblock %}
+{% block page_title %}Студенты{% endblock %}
+{% block page_subtitle %}Результаты обучающихся по вашим предметам{% endblock %}
+
+{% block content %}
+  <section class="card pad">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Студент</th><th>Email</th><th>Завершено попыток</th><th>Средний результат</th><th></th></tr></thead>
+        <tbody>
+          {% for row in student_rows %}
+            <tr>
+              <td><strong>{{ row.student.full_name }}</strong></td>
+              <td>{{ row.student.email }}</td>
+              <td>{{ row.completed_count }}</td>
+              <td>{{ row.average_percent }}%</td>
+              <td><a class="button secondary" href="{% url 'teacher_student_detail' row.student.user_id %}">Результаты</a></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5">К предметам преподавателя пока не записаны студенты.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

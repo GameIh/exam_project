@@ -1,0 +1,56 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Экзамены{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'core/styles.css' %}">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>Экзамены</h1>
+        <p>Личный кабинет</p>
+      </div>
+      <nav class="nav">
+        {% if request.user.is_student_role %}
+          <a class="{% if request.resolver_match.url_name == 'student_dashboard' %}active{% endif %}" href="{% url 'student_dashboard' %}">Кабинет студента</a>
+          <a class="{% if request.resolver_match.url_name == 'exam_selection' %}active{% endif %}" href="{% url 'exam_selection' %}">Выбор экзамена</a>
+          <a class="{% if request.resolver_match.url_name == 'results' or request.resolver_match.url_name == 'attempt_results' %}active{% endif %}" href="{% url 'results' %}">Результаты</a>
+        {% endif %}
+        {% if request.user.is_teacher_role %}
+          <a class="{% if request.resolver_match.url_name == 'teacher_dashboard' or 'teacher_exam_' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'teacher_dashboard' %}">Экзамены и результаты</a>
+          <a class="{% if 'teacher_question_' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'teacher_question_list' %}">Банк вопросов</a>
+          <a class="{% if 'teacher_student_' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'teacher_student_list' %}">Студенты</a>
+        {% endif %}
+        {% if request.user.is_admin_role or request.user.is_superuser %}
+          <a href="{% url 'admin:index' %}">Админ-панель</a>
+        {% endif %}
+        <form method="post" action="{% url 'logout' %}">
+          {% csrf_token %}
+          <button type="submit">Выйти</button>
+        </form>
+      </nav>
+    </aside>
+    <main class="main">
+      <div class="topbar">
+        <div class="page-title">
+          <h2>{% block page_title %}{% endblock %}</h2>
+          <p>{% block page_subtitle %}{% endblock %}</p>
+        </div>
+        <div class="profile">
+          <div class="avatar">{{ profile_initials }}</div>
+          <div>
+            <div><strong>{{ profile_name }}</strong></div>
+            <div class="muted">{{ profile_role }}</div>
+          </div>
+        </div>
+      </div>
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,100 @@
+{% extends "core/base.html" %}
+
+{% block title %}Кабинет преподавателя{% endblock %}
+{% block page_title %}Кабинет преподавателя{% endblock %}
+{% block page_subtitle %}Мои предметы, экзамены и результаты студентов{% endblock %}
+
+{% block content %}
+  {% if messages %}
+    <div class="panel-list page-messages">
+      {% for message in messages %}<div class="panel-item">{{ message }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <section class="kpis">
+    <div class="kpi"><div class="label">Предметов</div><div class="value">{{ subject_count }}</div></div>
+    <div class="kpi"><div class="label">Экзаменов</div><div class="value">{{ exam_count }}</div></div>
+    <div class="kpi"><div class="label">Попыток</div><div class="value">{{ attempt_count }}</div></div>
+    <div class="kpi"><div class="label">Средний балл</div><div class="value">{{ average_percent }}%</div></div>
+  </section>
+
+  <section class="grid grid-2">
+    <div class="card pad">
+      <h3>Мои экзамены</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Предмет</th>
+              <th>Экзамен</th>
+              <th>Публикация</th>
+              <th>Лимит</th>
+              <th>Вопросы</th>
+              <th>Попытки</th>
+              <th>Средний балл</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in exam_rows %}
+              <tr>
+                <td>{{ row.exam.subject.title }}</td>
+                <td>{{ row.exam.title }}</td>
+                <td>
+                  {% if row.exam.is_published %}
+                    <span class="badge success">Опубликован</span>
+                  {% else %}
+                    <span class="badge warning">Черновик</span>
+                  {% endif %}
+                </td>
+                <td>{{ row.time_limit_min }} мин</td>
+                <td>{{ row.exam.question_count }}</td>
+                <td>{{ row.completed_count }} / {{ row.attempt_count }}</td>
+                <td>{{ row.average_percent }}%</td>
+                <td>
+                  <div class="table-actions">
+                    <a class="button secondary" href="{% url 'teacher_exam_detail' row.exam.exam_id %}">Результаты</a>
+                    <a class="button ghost" href="{% url 'teacher_exam_edit' row.exam.exam_id %}">Настройки</a>
+                    <a class="button ghost" href="{% url 'teacher_exam_questions' row.exam.exam_id %}">Вопросы</a>
+                  </div>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="8">Экзамены пока не созданы.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="actions">
+        <a class="button" href="{% url 'teacher_exam_create' %}">Создать экзамен</a>
+        <a class="button secondary" href="{% url 'teacher_question_list' %}">Банк вопросов</a>
+      </div>
+    </div>
+
+    <div class="card pad">
+      <h3>Последние попытки</h3>
+      <div class="panel-list">
+        {% for attempt in latest_attempts %}
+          <div class="panel-item">
+            <h3><a href="{% url 'teacher_student_detail' attempt.student.user_id %}">{{ attempt.student.full_name }}</a></h3>
+            <p>{{ attempt.exam.subject.title }} — {{ attempt.exam.title }}: {{ attempt.score_total }}/{{ attempt.score_max }}</p>
+            <div class="exam-meta">
+              <span class="badge {% if attempt.status == 'submitted' %}success{% elif attempt.status == 'expired' %}warning{% else %}info{% endif %}">{{ attempt.get_status_display }}</span>
+              <span class="badge">{{ attempt.start_at|date:"d.m.Y H:i" }}</span>
+            </div>
+          </div>
+        {% empty %}
+          <div class="panel-item">
+            <h3>Попыток пока нет</h3>
+            <p>Когда студенты начнут сдавать экзамены, результаты появятся здесь.</p>
+          </div>
+        {% endfor %}
+      </div>
+      <div class="actions">
+        <a class="button secondary" href="{% url 'teacher_student_list' %}">Все студенты</a>
+      </div>
+    </div>
+  </section>
+{% endblock %}

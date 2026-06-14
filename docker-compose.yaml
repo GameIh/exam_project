@@ -1,0 +1,70 @@
+services:
+  web:
+    build:
+      context: .
+    container_name: exam_web
+    restart: unless-stopped
+    environment:
+      DJANGO_DEBUG: "True"
+      DJANGO_SECRET_KEY: django-insecure-change-me
+      DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost,0.0.0.0,web,testserver
+      POSTGRES_DB: exam_db
+      POSTGRES_USER: exam_user
+      POSTGRES_PASSWORD: exam_pass
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      TIME_ZONE: Asia/Yakutsk
+      SEED_DEMO_DATA: "true"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16
+    container_name: exam_postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: exam_db
+      POSTGRES_USER: exam_user
+      POSTGRES_PASSWORD: exam_pass
+      TZ: Asia/Yakutsk
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U exam_user -d exam_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: exam_pgadmin
+    restart: unless-stopped
+
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+
+    ports:
+      - "5050:80"
+
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+    depends_on:
+      - postgres
+
+
+volumes:
+  postgres_data:
+  pgadmin_data:

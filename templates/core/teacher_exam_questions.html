@@ -1,0 +1,53 @@
+{% extends "core/base.html" %}
+
+{% block title %}Вопросы экзамена{% endblock %}
+{% block page_title %}Состав экзамена{% endblock %}
+{% block page_subtitle %}{{ exam.subject.title }} — {{ exam.title }}{% endblock %}
+
+{% block content %}
+  {% if messages %}<div class="panel-list page-messages">{% for message in messages %}<div class="panel-item">{{ message }}</div>{% endfor %}</div>{% endif %}
+  <section class="grid grid-2">
+    <div class="card pad">
+      <div class="section-head">
+        <h3>Вопросы экзамена</h3>
+        <a class="button secondary" href="{% url 'teacher_question_create' %}">Создать вопрос</a>
+      </div>
+      <div class="panel-list">
+        {% for item in attached_questions %}
+          <div class="panel-item">
+            <div class="exam-head">
+              <div>
+                <h3>{{ item.question_order }}. {{ item.question.question_text }}</h3>
+                <div class="exam-meta">
+                  <span class="badge">{{ item.question.get_q_type_display }}</span>
+                  <span class="badge info">{{ item.points }} балл.</span>
+                </div>
+              </div>
+              <form method="post" action="{% url 'teacher_exam_question_remove' exam.exam_id item.exam_question_id %}">
+                {% csrf_token %}<button class="button danger" type="submit">Убрать</button>
+              </form>
+            </div>
+          </div>
+        {% empty %}
+          <div class="panel-item"><h3>Вопросы ещё не добавлены</h3><p>Выберите вопрос из банка справа.</p></div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="card pad">
+      <h3>Добавить из банка</h3>
+      {% if form.fields.question.queryset %}
+        <form method="post" class="stack-form">
+          {% csrf_token %}
+          {% for field in form %}
+            <div class="form-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</div>
+          {% endfor %}
+          <div class="actions"><button class="button" type="submit">Добавить</button></div>
+        </form>
+      {% else %}
+        <p>Нет свободных активных вопросов по предмету.</p>
+        <div class="actions"><a class="button" href="{% url 'teacher_question_create' %}">Создать вопрос</a></div>
+      {% endif %}
+      <div class="actions"><a class="button secondary" href="{% url 'teacher_exam_detail' exam.exam_id %}">Готово</a></div>
+    </div>
+  </section>
+{% endblock %}

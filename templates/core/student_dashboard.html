@@ -1,0 +1,104 @@
+{% extends "core/base.html" %}
+
+{% block title %}Кабинет студента{% endblock %}
+{% block page_title %}Кабинет студента{% endblock %}
+{% block page_subtitle %}Предметы, экзамены и результаты{% endblock %}
+
+{% block content %}
+  <section class="kpis">
+    <div class="kpi"><div class="label">Предметов</div><div class="value">{{ subject_count }}</div></div>
+    <div class="kpi"><div class="label">Доступно экзаменов</div><div class="value">{{ available_count }}</div></div>
+    <div class="kpi"><div class="label">Сдано</div><div class="value">{{ submitted_count }}</div></div>
+    <div class="kpi"><div class="label">Средний балл</div><div class="value">{{ average_percent }}%</div></div>
+  </section>
+
+  <section class="grid grid-2">
+    <div class="card pad">
+      <h3>Мои экзамены</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Предмет</th>
+              <th>Экзамен</th>
+              <th>Статус</th>
+              <th>Попытки</th>
+              <th>Срок</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <td>{{ row.exam.subject.title }}</td>
+                <td>{{ row.exam.title }}</td>
+                <td><span class="badge {{ row.status_class }}">{{ row.status_label }}</span></td>
+                <td>{{ row.attempts_used }} / {{ row.exam.attempts_limit }}</td>
+                <td>
+                  {% if row.exam.available_to %}
+                    {{ row.exam.available_to|date:"d.m.Y" }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+                <td>
+                  {% if row.action_url == "start_exam" %}
+                    <form method="post" action="{% url 'start_exam' row.exam.exam_id %}">
+                      {% csrf_token %}
+                      <button class="button secondary" type="submit">{{ row.action_label }}</button>
+                    </form>
+                  {% elif row.action_url == "exam_taking" %}
+                    <a class="button secondary" href="{% url 'exam_taking' row.action_attempt.attempt_id %}">{{ row.action_label }}</a>
+                  {% elif row.action_url == "attempt_results" and row.action_attempt %}
+                    <a class="button secondary" href="{% url 'attempt_results' row.action_attempt.attempt_id %}">{{ row.action_label }}</a>
+                  {% else %}
+                    <span class="button disabled">{{ row.action_label }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="6">Пока нет доступных экзаменов.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card pad">
+      <h3>Ближайший экзамен</h3>
+      <div class="panel-list">
+        {% if nearest_exam %}
+          <div class="panel-item">
+            <h3>{{ nearest_exam.exam.subject.title }} — {{ nearest_exam.exam.title }}</h3>
+            <p>Осталось попыток: {{ nearest_exam.attempts_left }}. Время на выполнение: {{ nearest_exam.time_limit_min }} минут.</p>
+            <div class="exam-meta">
+              <span class="badge info">{{ nearest_exam.exam.question_count }} вопросов</span>
+              {% if nearest_exam.exam.available_to %}
+                <span class="badge warning">До {{ nearest_exam.exam.available_to|date:"d.m.Y H:i" }}</span>
+              {% endif %}
+            </div>
+            <div class="actions">
+              <a class="button" href="{% url 'exam_selection' %}">К экзаменам</a>
+            </div>
+          </div>
+        {% else %}
+          <div class="panel-item">
+            <h3>Нет активных экзаменов</h3>
+            <p>Когда преподаватель опубликует экзамен по вашему предмету, он появится здесь.</p>
+          </div>
+        {% endif %}
+
+        <div class="panel-item">
+          <h3>Последний результат</h3>
+          {% if latest_result %}
+            <p>{{ latest_result.exam.subject.title }} — {{ latest_result.exam.title }}: {{ latest_result.score_total }} из {{ latest_result.score_max }}.</p>
+          {% else %}
+            <p>Завершённых попыток пока нет.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}

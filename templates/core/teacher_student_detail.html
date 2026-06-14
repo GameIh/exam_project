@@ -1,0 +1,34 @@
+{% extends "core/base.html" %}
+
+{% block title %}Результаты студента{% endblock %}
+{% block page_title %}{{ student.full_name }}{% endblock %}
+{% block page_subtitle %}Завершённые попытки по предметам преподавателя{% endblock %}
+
+{% block content %}
+  <section class="kpis compact-kpis">
+    <div class="kpi"><div class="label">Завершено попыток</div><div class="value">{{ result_rows|length }}</div></div>
+    <div class="kpi"><div class="label">Средний результат</div><div class="value">{{ average_percent }}%</div></div>
+  </section>
+  <section class="card pad">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Предмет</th><th>Экзамен</th><th>Дата</th><th>Статус</th><th>Результат</th><th>Время</th></tr></thead>
+        <tbody>
+          {% for row in result_rows %}
+            <tr>
+              <td>{{ row.attempt.exam.subject.title }}</td>
+              <td><a href="{% url 'teacher_exam_detail' row.attempt.exam.exam_id %}"><strong>{{ row.attempt.exam.title }}</strong></a></td>
+              <td>{{ row.attempt.end_at|date:"d.m.Y H:i" }}</td>
+              <td>{% if row.attempt.status == 'expired' %}<span class="badge warning">Время истекло</span>{% else %}<span class="badge success">Сдан</span>{% endif %}</td>
+              <td>{{ row.attempt.score_total }} / {{ row.attempt.score_max }} <span class="muted">({{ row.score_percent }}%)</span></td>
+              <td>{% if row.duration_minutes %}{{ row.duration_minutes }} мин.{% else %}—{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6">Завершённых попыток пока нет.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="actions"><a class="button secondary" href="{% url 'teacher_student_list' %}">К списку студентов</a></div>
+  </section>
+{% endblock %}

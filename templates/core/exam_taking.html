@@ -1,0 +1,100 @@
+{% extends "core/base.html" %}
+
+{% block title %}Прохождение экзамена{% endblock %}
+{% block page_title %}{{ attempt.exam.subject.title }} — {{ attempt.exam.title }}{% endblock %}
+{% block page_subtitle %}Попытка №{{ attempt.attempt_id }}{% endblock %}
+
+{% block content %}
+  {% if messages %}
+    <div class="panel-list" style="margin-bottom:14px">
+      {% for message in messages %}
+        <div class="panel-item">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post" id="exam-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" id="exam-action" value="save">
+    <section class="exam-layout">
+      <div class="panel-list">
+        {% for item in questions %}
+          <article class="question-card" id="q{{ forloop.counter }}">
+            <div class="exam-head">
+              <div>
+                <span class="badge">Вопрос {{ forloop.counter }}</span>
+                <h3>{{ item.exam_question.question.question_text }}</h3>
+              </div>
+              <span class="badge info">{{ item.exam_question.points }} балл.</span>
+            </div>
+
+            {% if item.exam_question.question.q_type == "single_choice" %}
+              {% for option in item.exam_question.question.options.all %}
+                <label class="option">
+                  <input
+                    type="radio"
+                    name="choice_{{ item.exam_question.question.question_id }}"
+                    value="{{ option.option_id }}"
+                    {% if item.answer.selected_option_id == option.option_id %}checked{% endif %}
+                  >
+                  <div>{{ option.option_text }}</div>
+                </label>
+              {% endfor %}
+            {% else %}
+              <textarea class="text-answer" name="text_{{ item.exam_question.question.question_id }}">{{ item.answer.answer_text|default:"" }}</textarea>
+            {% endif %}
+          </article>
+        {% empty %}
+          <article class="question-card">
+            <h3>В экзамене пока нет вопросов</h3>
+            <p>Обратитесь к преподавателю.</p>
+          </article>
+        {% endfor %}
+      </div>
+
+      <div class="timer-box">
+        <div class="card pad">
+          <h3>Оставшееся время</h3>
+          <div class="result-score" id="exam-timer" data-seconds="{{ remaining_total_seconds }}">{{ remaining_minutes|stringformat:"02d" }}:{{ remaining_seconds|stringformat:"02d" }}</div>
+          <div class="progress"><div style="width:{{ progress }}%"></div></div>
+          <p style="margin-top:10px">Отвечено на {{ answered_count }} из {{ total_questions }} вопросов</p>
+          <div class="question-nav">
+            {% for item in questions %}
+              <a class="q-number {% if item.answered %}done{% endif %}" href="#q{{ forloop.counter }}">{{ forloop.counter }}</a>
+            {% endfor %}
+          </div>
+          <div class="actions">
+            <button class="button ghost" type="submit" name="action" value="save">Сохранить</button>
+            <button class="button" type="submit" name="action" value="submit">Завершить экзамен</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </form>
+
+  <script>
+    const timer = document.getElementById("exam-timer");
+    const form = document.getElementById("exam-form");
+    const actionInput = document.getElementById("exam-action");
+    let remaining = Number(timer.dataset.seconds || 0);
+    let submitted = false;
+
+    function renderTimer() {
+      const minutes = Math.floor(remaining / 60);
+      const seconds = remaining % 60;
+      timer.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    }
+
+    const interval = setInterval(() => {
+      remaining = Math.max(remaining - 1, 0);
+      renderTimer();
+
+      if (remaining === 0 && !submitted) {
+        submitted = true;
+        clearInterval(interval);
+        actionInput.value = "submit";
+        form.requestSubmit();
+      }
+    }, 1000);
+  </script>
+{% endblock %}

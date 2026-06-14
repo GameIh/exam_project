@@ -1,0 +1,82 @@
+{% extends "core/base.html" %}
+
+{% block title %}Результаты{% endblock %}
+{% block page_title %}Результаты экзамена{% endblock %}
+{% block page_subtitle %}{% if attempt %}{{ attempt.exam.subject.title }} — {{ attempt.exam.title }}{% else %}Завершённых попыток пока нет{% endif %}{% endblock %}
+
+{% block content %}
+  {% if messages %}
+    <div class="panel-list" style="margin-bottom:14px">
+      {% for message in messages %}
+        <div class="panel-item">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if not attempt %}
+    <section class="card pad">
+      <h3>Результатов пока нет</h3>
+      <p>После завершения экзамена здесь появится итоговый балл и разбор ответов.</p>
+      <div class="actions">
+        <a class="button" href="{% url 'exam_selection' %}">К экзаменам</a>
+      </div>
+    </section>
+  {% else %}
+    <section class="grid grid-2">
+      <div class="card pad">
+        {% if attempt.status == "expired" %}
+          <span class="badge warning">Время истекло</span>
+        {% else %}
+          <span class="badge success">Экзамен завершён</span>
+        {% endif %}
+        <div class="result-score">{{ attempt.score_total }} / {{ attempt.score_max }}</div>
+        <p>Итоговый процент: {{ score_percent }}%.</p>
+        <p>Попытка завершена {{ attempt.end_at|date:"d.m.Y в H:i" }}</p>
+        <div class="panel-list" style="margin-top:18px">
+          <div class="panel-item">
+            <h3>Основная информация</h3>
+            <p>Статус попытки: {{ attempt.get_status_display }}. Лимит времени: {{ time_limit_min }} минут.</p>
+          </div>
+          <div class="panel-item">
+            <h3>Предмет</h3>
+            <p>{{ attempt.exam.subject.title }}. Преподаватель: {{ attempt.exam.subject.teacher.full_name }}.</p>
+          </div>
+        </div>
+        <div class="actions">
+          <a class="button" href="{% url 'student_dashboard' %}">В кабинет</a>
+          <a class="button secondary" href="{% url 'exam_selection' %}">К экзаменам</a>
+        </div>
+      </div>
+
+      <div class="card pad">
+        <h3>Ответы</h3>
+        <div class="panel-list">
+          {% for item in question_results %}
+            <div class="panel-item">
+              <h3>Вопрос {{ forloop.counter }}</h3>
+              {% if item.is_correct %}
+                <span class="badge success">Верно</span>
+              {% else %}
+                <span class="badge danger">Неверно</span>
+              {% endif %}
+              <p>{{ item.exam_question.question.question_text }}</p>
+              {% if item.answer %}
+                {% if item.answer.selected_option %}
+                  <p>Ваш ответ: {{ item.answer.selected_option.option_text }}</p>
+                {% elif item.answer.answer_text %}
+                  <p>Ваш ответ: {{ item.answer.answer_text }}</p>
+                {% endif %}
+                <p>Баллы: {{ item.answer.score_awarded }} из {{ item.exam_question.points }}.</p>
+                {% if item.exam_question.question.explanation %}
+                  <p>{{ item.exam_question.question.explanation }}</p>
+                {% endif %}
+              {% else %}
+                <p>Ответ не был дан. Баллы: 0 из {{ item.exam_question.points }}.</p>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

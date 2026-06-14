@@ -1,0 +1,64 @@
+{% extends "core/base.html" %}
+
+{% block title %}Результаты{% endblock %}
+{% block page_title %}Результаты экзаменов{% endblock %}
+{% block page_subtitle %}Завершённые попытки и подробный разбор ответов{% endblock %}
+
+{% block content %}
+  <section class="card pad">
+    {% if result_rows %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Предмет и экзамен</th>
+              <th>Дата сдачи</th>
+              <th>Статус</th>
+              <th>Результат</th>
+              <th>Время</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in result_rows %}
+              <tr>
+                <td>
+                  <strong>{{ row.attempt.exam.title }}</strong>
+                  <div class="muted">{{ row.attempt.exam.subject.title }}</div>
+                </td>
+                <td>{{ row.attempt.end_at|date:"d.m.Y H:i" }}</td>
+                <td>
+                  {% if row.attempt.status == "expired" %}
+                    <span class="badge warning">Время истекло</span>
+                  {% else %}
+                    <span class="badge success">Сдан</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <strong>{{ row.attempt.score_total }} из {{ row.attempt.score_max }}</strong>
+                  <div class="muted">{{ row.score_percent }}%</div>
+                </td>
+                <td>
+                  {% if row.duration_minutes %}
+                    {{ row.duration_minutes }} мин.
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+                <td>
+                  <a class="button secondary" href="{% url 'attempt_results' row.attempt.attempt_id %}">Открыть</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <h3>Результатов пока нет</h3>
+      <p>После завершения экзамена здесь появится попытка с итоговым баллом и ссылкой на разбор ответов.</p>
+      <div class="actions">
+        <a class="button" href="{% url 'exam_selection' %}">К экзаменам</a>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

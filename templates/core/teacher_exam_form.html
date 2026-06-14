@@ -1,0 +1,39 @@
+{% extends "core/base.html" %}
+
+{% block title %}{% if exam %}Настройки экзамена{% else %}Новый экзамен{% endif %}{% endblock %}
+{% block page_title %}{% if exam %}Настройки экзамена{% else %}Создание экзамена{% endif %}{% endblock %}
+{% block page_subtitle %}{% if exam %}{{ exam.subject.title }} — {{ exam.title }}{% else %}Основные параметры и период доступности{% endif %}{% endblock %}
+
+{% block content %}
+  <section class="card pad form-card">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-grid">
+        {% for field in form %}
+          <div class="form-field {% if field.name == 'description' %}wide{% endif %}">
+            {% if field.field.widget.input_type == "checkbox" %}
+              <label class="check-field">{{ field }} <span>{{ field.label }}</span></label>
+            {% else %}
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+            {% endif %}
+            {% if field.help_text %}<div class="field-help">{{ field.help_text }}</div>{% endif %}
+            {% for error in field.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+        {% endfor %}
+      </div>
+      {% for error in form.non_field_errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+      <div class="actions">
+        <button class="button" type="submit">Сохранить</button>
+        <a class="button secondary" href="{% if exam %}{% url 'teacher_exam_detail' exam.exam_id %}{% else %}{% url 'teacher_dashboard' %}{% endif %}">Отмена</a>
+      </div>
+    </form>
+    {% if exam %}
+      <form method="post" action="{% url 'teacher_exam_delete' exam.exam_id %}" class="danger-zone">
+        {% csrf_token %}
+        <button class="button danger" type="submit">Удалить экзамен</button>
+        <span class="muted">Удаление доступно, пока по экзамену нет попыток.</span>
+      </form>
+    {% endif %}
+  </section>
+{% endblock %}
