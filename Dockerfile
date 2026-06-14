@@ -16,4 +16,4 @@ RUN pip install --no-cache-dir --upgrade pip \
 COPY . /app/
 
 ENTRYPOINT ["sh", "/app/docker/entrypoint.sh"]
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["gunicorn", "exam_project.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "60"]
