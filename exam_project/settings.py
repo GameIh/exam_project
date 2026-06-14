@@ -35,6 +35,10 @@ ALLOWED_HOSTS = os.getenv(
 ).split(",")
 ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS if host.strip()]
 
+# COOP is only enforced for trustworthy origins (HTTPS or localhost). The
+# application is currently published over plain HTTP by IP address.
+SECURE_CROSS_ORIGIN_OPENER_POLICY = None
+
 
 # Application definition
 
